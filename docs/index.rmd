@@ -1,0 +1,221 @@
+---
+title: "Archive of Our Own Data Analysis"
+author: "Melanie Najera - mnajera4001@floridapoly.edu"
+output: rmdformats::readthedown
+---
+
+# Depth Analysis on Online Written Works from Archive of Our Own
+###### **Written by: Melanie Najera**
+###### **Github** [@mela636](https://github.com/mela636)
+
+## Introduction:
+The internet holds countless possibilities, and one that has been on the rise for the past couple decades are online communities connecting through various medias. Through social media, many are able to explore and expand on any of their desires, which is where Archive of Our Own comes in. Archive of Our Own, often known as AO3, is an open source repository that allows its users to create and distribute works, specifically literature, that they themselves wrote. 
+
+Today, we will explore a data set provided by the organization themselves that was published March 21, 2021. This set contains two csv files; one that details information regarding works and another that contains their description with its tags. What is written below is the meaning of each variable the csv files contain as a guide. 
+
+### Variable Clarifications:
+
+#### works.csv:
+Variable                | Description
+------------------------|-----------------------------------------------------------------------------------------------------------------------
+creation date:          | The date the work was created
+language:               | The language it's written in
+word count:             | The amount of words within the story
+restricted or not:      | Whether a work is only accessible to people with accounts (restricted = log in necessary)
+completed or not:       | Whether the work is marked as finished
+associated tag ids:     | Identification number of a particular tag
+
+#### tags.csv:
+Variable                | Description
+------------------------|-----------------------------------------------------------------------------------------------------------------------
+tag id:                 | Identification number of a particular tag
+tag type:               | Specifies which Rating, Warnings, Fandoms, Categories, Characters, and Relationships apply
+tag name:               | Keyword or phrase that describes a work
+canonical or not:       | Filters tags with a combination when the user means one thing but there's different ways to type it as one big tag, ie if a user types a couple like a/b or b/a, ao3 shows both
+approximate number of uses: | An approximate amount of times the tag itself has been used
+merger id:              | Combines the identification of a tag that contains both the canonical and non-canonical version
+
+## Data Description
+
+### Prerequisites
+```{r, message=FALSE, warning=FALSE}
+#install.packages('hrbrthemes')
+#install.packages('rmdformats')
+library(tidyverse)
+library(ggplot2)
+library(hrbrthemes)
+library(dplyr)
+library(lubridate)
+```
+### Archive of Our Own Data Set
+[Source](https://archiveofourown.org/admin_posts/18804)
+```{r, message=FALSE, warning=FALSE}
+ao3_tags <- read_csv("C:/Users/kirik/Documents/fpu/Fall 2022/Data Science (R)/ao3 data set/stats/tags-20210226.csv")
+ao3_works <- read_csv("C:/Users/kirik/Documents/fpu/Fall 2022/Data Science (R)/ao3 data set/stats/works-20210226.csv")
+```
+###
+```{r}
+glimpse(ao3_works)
+```
+```{r}
+glimpse(ao3_tags)
+```
+```{r}
+sample(ao3_works)
+```
+```{r}
+sample(ao3_tags)
+```
+```{r}
+ao3_works <- ao3_works %>% 
+  rename(creation_date = `creation date`)
+```
+For the sake of keeping the data cleaner, I renamed the creation date variable to be without spaces.
+
+## Data Analysis!
+In my previous work to conjure up ideas for this particular data set, I came up with various prompts that I am curious about. I wish to figure out:
+
+### What are the most popular tags?
+To recall, tags are provided by the user that describes a work. I'm curious to see if popular tropes such as soul mates, slow burn, enemies to lovers, etc. will stand out or if it will taken over by other descriptors such as a particular couple that's been written about.
+
+```{r}
+ao3_tags%>%
+  filter(cached_count == max(cached_count, na.rm = TRUE))
+```
+Knowing how to find the max amount of times a tag is used, I want to now find the most used tags and put them in descending order. Then, I will proceed to graph them and see the differences in the amount of uses between the top ten. 
+
+```{r}
+ao3_tags%>%
+  arrange(desc(cached_count))
+```
+Now looking at the bigger picture by displaying the type of tag, I see the impact that that may create and the differences in the tags. If I want to find tropes, which was what I was originally expecting to see, I need to filter the type to be "**Freeform**". Also, I can breakdown the tags and explore which tags are the most popular in certain types.
+
+```{r}
+ao3_tags%>%
+  filter(type=="Freeform")%>%
+  arrange(desc(cached_count))
+```
+```{r}
+ao3_tags%>%
+  filter(type=="Freeform")%>%
+  arrange(desc(cached_count)) %>% 
+  mutate(name = fct_reorder(name, cached_count)) %>%
+  head(10) %>% 
+  ggplot(aes(x=name, y=cached_count))+
+  geom_point(color="darksalmon")+
+  geom_segment(aes(x=name, xend=name, y=0, yend=cached_count),color="darksalmon")+
+  coord_flip()+
+  labs(title = "Most Popular Freeform Tags in Archive of Our Own",
+       y="Number of Times Tag is Used",
+       x="Tag Name")+
+  theme_minimal()
+
+```
+
+This graph demonstrates the top ten freeform tags in descending order from Archive of Our Own with the tag names and the number of times it has been used. From the graph we can see that fluff is the most popular tag followed by angst.
+
+After testing with the freeform tag, I realize the type variable determines which tags will appear and with that, I can mess with specific categories of tags. I can determine which shows or fanbases have the most amount of works. The code below demonstrates that, as of April 2021, Harry Potter was the most written about. 
+```{r}
+ao3_tags%>%
+  filter(type=="Fandom")%>%
+  filter(canonical == TRUE)%>%
+  arrange(desc(cached_count))
+```
+```{r}
+ao3_tags%>%
+  filter(type=="Relationship")%>%
+  filter(canonical == TRUE)%>%
+  arrange(desc(cached_count))
+```
+Despite Harry Potter being the most written about, the most written about relationship is from the show, "Teen Wolf".
+```{r}
+ao3_tags%>%
+  filter(type=="Character")%>%
+  filter(canonical == TRUE)%>%
+  arrange(desc(cached_count))
+```
+
+### What is the greatest word count written?
+One of the wonders of Archive of Our Own is that there are no restrictions or limits on how much a user may write in their free time. This leads to a great variety on the word count of each story. 
+```{r}
+ao3_works%>%
+  filter(word_count == max(word_count, na.rm = TRUE))
+```
+The greatest word count as of March of 2021 is over 5 million words. To put that into perspective, that's over 12,000 pages in a book. It's the entire Harry Potter series almost five times- and it's incomplete.   
+
+### What is the average word count written?
+Now knowing the greatest work written as of the release of this data set, I'd like to explore the total average word amount written.
+```{r}
+ao3_works%>%
+  summarise(avg_word_count=mean(word_count,na.rm = TRUE))
+```
+```{r, warning=FALSE}
+ao3_works%>%
+  mutate(creation_date = ymd(creation_date)) %>% 
+  mutate_at(vars(creation_date), funs(year, month, day)) %>%
+  group_by(year)%>%
+  filter(year < 2021)%>%
+  summarise(avg_word_count=mean(word_count,na.rm = TRUE))%>%
+  ggplot(aes(x=year,y=avg_word_count))+
+  geom_point(
+        color="black",
+        fill="#69b3a2",
+        shape=22,
+        alpha=0.5,
+        size=6,
+        stroke = 1
+        ) +
+  labs(title = "Average Word Count Over The Years",
+       x="Years",
+       y="Average Word Count")+
+  theme_ipsum()
+
+```
+
+This graph demonstrates the average amount of words over the years, which gradually rose throughout the 2010's, and seemed to decrease after 2018. 
+
+### What impact did covid-19 have on stories?
+I believe, with the free time that occurred during the pandemic as well as stay home orders, that people began to write and publish more works during the pandemic.
+
+```{r}
+ao3_works %>%
+  mutate(creation_date = ymd(creation_date)) %>% 
+  mutate_at(vars(creation_date), funs(year, month, day)) %>%
+  group_by(year)%>%
+  filter(year < 2021)%>%
+  summarise(works_per_year = sum(year))%>%
+  ggplot(aes(x=year, y=works_per_year))+
+  geom_col(fill = "darkseagreen3")+
+  geom_text(aes(label = works_per_year),vjust = -1, size =  2) +
+  labs(title = "Amount of Works Posted Over The Years",
+       x="Years",
+       y="Number of Works")+
+  theme_minimal()
+```
+
+This graph illustrates the amount of works produced each year since 2008 all the way to 2020.
+
+
+```{r}
+ao3_tags%>%
+  filter(name == "COVID-19")
+```
+
+## Commentary on my Research Questions
+### Regarding Most Popular Tags:
+I was not expecting the "No Archive Warnings Apply" but it makes the most sense. It's an optional tag that each creator gets before publishing a work that, as a collective, tells the reader that there's no major character death, graphic violence, underage content, etc. Once I realized how much I can figure out by changing the type of tag, it allowed me to find out what could be the most popular among fans in categories. Through that, I can find correlations such as the most common category tag was M/M, which is backed up by the fact that, for the first three pages of the relationship tag, there were only M/M couples. On the other hand, what may be the most used tag in a certain type won't necessarily be the most popular in every type, such as Harry Potter being the most written about, while Teen Wolf has the most written about relationship, and Supernatural has the most written about character. 
+
+### Regarding the Greatest Word Count
+I can't fathom the actual size of that story, even by comparing it to other stories to try to put it into perspective. Although, I'm not surprised that someone has written so much. As of December 2022, you can find the greatest word count has been beaten by almost 2 billion worth of words. 
+
+### Regarding the Average Word Count
+I was expecting the average word count to be much higher than 7,000 words due to the impact of certain outliers such as the work that has over five million words, but the opposite must be taken into account. Many works in archive of our own are either small, or incomplete; Tons are created a day and expected to be expanded on but stay as a one chapter that never gets continued. 
+
+### Regarding the impact of Covid-19
+As I expected, 2020 had an vast impact Archive of Our Own. It lead to quite a jump in the amount of works being created due to the free time during quarantine. Not only did people begin to write more, people started to write about their favorite characters in the pandemic we ourselves were in. 
+
+### Future Works
+There are an immense amount of possibilities people could explore with this data set. By conjoining the ao3_tag and ao3_works dataset, we may find the correlation between certain tags and the time from which they came from. Additionally, we could correlate patterns of what people are writing and consuming to particular years. For example, there could have been an influx of works that came after the release of certain book series being adapted to the screen and compare the difference, such as the before and after the release of the Harry Potter movies. Furthermore, we could expand on the impacts of the pandemic. It's likely particular tropes grew to become more popular, for instance long distance, quarantine, and forced proximity as it became more apparent in our day to day life. On top of that, the information provided in the language variable may be used to explore the various languages Archive of Our Own contains. 
+
+## Works Cited
+Special thanks to the people over at Archive of Our Own for publishing the site's statistics, which can be found here: [https://archiveofourown.org/admin_posts/18804](https://archiveofourown.org/admin_posts/18804)
